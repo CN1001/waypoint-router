@@ -28,63 +28,37 @@ function MapClickHandler({ onSelect }: { onSelect: (point: LatLng) => void }) {
   return null;
 }
 
-function pointLabel(point: LatLng | null): string {
-  if (!point) {
-    return 'Not selected';
-  }
-
-  return `${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`;
-}
-
 export default function App() {
-  const [start, setStart] = useState<LatLng | null>(null);
-  const [end, setEnd] = useState<LatLng | null>(null);
+  const [waypoints, setWaypoints] = useState<LatLng[]>([]);
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const instruction = useMemo(() => {
-    if (!start) {
-      return 'Click the map to set the start point.';
-    }
-    if (!end) {
-      return 'Click the map to set the target point.';
-    }
-    return 'Route alternatives are shown on the map.';
-  }, [start, end]);
+    if (waypoints.length === 0) return 'Click the map to set Stop 1.';
+    if (waypoints.length === 1) return 'Click the map to set Stop 2.';
+    return `Route shown. Click to add Stop ${waypoints.length + 1}.`;
+  }, [waypoints.length]);
 
-  const handleSelect = useCallback(
-    (point: LatLng) => {
-      setError(null);
+  const handleSelect = useCallback((point: LatLng) => {
+    setError(null);
+    setWaypoints((prev) => [...prev, point]);
+  }, []);
 
-      if (!start) {
-        setStart(point);
-        setRoutes([]);
-        return;
-      }
-
-      if (!end) {
-        setEnd(point);
-        return;
-      }
-
-      setStart(point);
-      setEnd(null);
-      setRoutes([]);
-    },
-    [start, end],
-  );
+  const removeWaypoint = useCallback((index: number) => {
+    setWaypoints((prev) => prev.filter((_, i) => i !== index));
+  }, []);
 
   const reset = useCallback(() => {
-    setStart(null);
-    setEnd(null);
+    setWaypoints([]);
     setRoutes([]);
     setError(null);
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    if (!start || !end) {
+    if (waypoints.length < 2) {
+      setRoutes([]);
       return;
     }
 
@@ -92,7 +66,7 @@ export default function App() {
     setIsLoading(true);
     setError(null);
 
-    fetchRoutes(start, end)
+    fetchRoutes(waypoints)
       .then((response) => {
         if (isCurrent) {
           setRoutes(response.routes);
@@ -113,7 +87,7 @@ export default function App() {
     return () => {
       isCurrent = false;
     };
-  }, [start, end]);
+  }, [waypoints]);
 
   return (
     <main className="app-shell">
@@ -124,8 +98,9 @@ export default function App() {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <MapClickHandler onSelect={handleSelect} />
-          {start && <Marker icon={markerIcon} position={[start.lat, start.lng]} />}
-          {end && <Marker icon={markerIcon} position={[end.lat, end.lng]} />}
+          {waypoints.map((wp, index) => (
+            <Marker key={index} icon={markerIcon} position={[wp.lat, wp.lng]} />
+          ))}
           {routes.map((route, index) => (
             <Polyline
               key={route.id}
@@ -142,20 +117,31 @@ export default function App() {
 
       <aside className="control-panel" aria-label="Route controls">
         <div className="panel-heading">
-          <p className="eyebrow">Routing baseline</p>
+          <p className="eyebrow">Multi-stop routing</p>
           <h1>Point to point routes</h1>
           <p>{instruction}</p>
         </div>
 
         <div className="point-list">
-          <div>
-            <span>Start</span>
-            <strong>{pointLabel(start)}</strong>
-          </div>
-          <div>
-            <span>Target</span>
-            <strong>{pointLabel(end)}</strong>
-          </div>
+          {waypoints.length === 0 && (
+            <p className="state-text">No stops added yet.</p>
+          )}
+          {waypoints.map((wp, index) => (
+            <div key={index} className="waypoint-item">
+              <span>Stop {index + 1}</span>
+              <strong>
+                {wp.lat.toFixed(5)}, {wp.lng.toFixed(5)}
+              </strong>
+              <button
+                className="waypoint-remove"
+                type="button"
+                aria-label={`Remove stop ${index + 1}`}
+                onClick={() => removeWaypoint(index)}
+              >
+                ×
+              </button>
+            </div>
+          ))}
         </div>
 
         <button className="reset-button" type="button" onClick={reset}>
@@ -166,10 +152,12 @@ export default function App() {
           <h2>Alternatives</h2>
           {isLoading && <p className="state-text">Loading route alternatives...</p>}
           {error && <p className="state-text error-text">{error}</p>}
-          {!isLoading && !error && start && end && routes.length === 0 && (
+          {!isLoading && !error && waypoints.length >= 2 && routes.length === 0 && (
             <p className="state-text">No route alternatives were returned.</p>
           )}
-          {!start || !end ? <p className="state-text">Select two points to calculate routes.</p> : null}
+          {waypoints.length < 2 && (
+            <p className="state-text">Add 2 or more stops to calculate a route.</p>
+          )}
           {routes.map((route, index) => (
             <article className="route-item" key={route.id}>
               <div className="route-swatch" style={{ backgroundColor: routeColors[index % routeColors.length] }} />
