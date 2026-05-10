@@ -26,15 +26,26 @@ def test_parse_coordinate_pair_rejects_missing_lng_value():
         raise AssertionError("Expected malformed coordinate to raise ValueError")
 
 
-def test_build_osrm_url_uses_lng_lat_order_for_provider():
-    start = parse_coordinate_pair("13.7563,100.5018")
-    end = parse_coordinate_pair("13.7367,100.5231")
+def test_build_osrm_url_two_waypoints_uses_lng_lat_order_and_includes_alternatives():
+    a = parse_coordinate_pair("13.7563,100.5018")
+    b = parse_coordinate_pair("13.7367,100.5231")
 
-    url = build_osrm_url(start, end)
+    url = build_osrm_url([a, b])
 
     assert "100.5018,13.7563;100.5231,13.7367" in url
     assert "alternatives=true" in url
     assert "geometries=geojson" in url
+
+
+def test_build_osrm_url_three_waypoints_includes_all_stops_and_omits_alternatives():
+    a = parse_coordinate_pair("13.7563,100.5018")
+    b = parse_coordinate_pair("13.7450,100.5100")
+    c = parse_coordinate_pair("13.7367,100.5231")
+
+    url = build_osrm_url([a, b, c])
+
+    assert "100.5018,13.7563;100.51,13.745;100.5231,13.7367" in url
+    assert "alternatives" not in url
 
 
 def test_normalize_osrm_routes_converts_geojson_lng_lat_to_leaflet_lat_lng():

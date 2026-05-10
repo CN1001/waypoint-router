@@ -14,15 +14,11 @@ export type RoutesResponse = {
   routes: RouteOption[];
 };
 
-function encodePoint(point: LatLng): string {
-  return `${point.lat},${point.lng}`;
-}
-
-export async function fetchRoutes(start: LatLng, end: LatLng): Promise<RoutesResponse> {
-  const params = new URLSearchParams({
-    start: encodePoint(start),
-    end: encodePoint(end),
-  });
+export async function fetchRoutes(waypoints: LatLng[]): Promise<RoutesResponse> {
+  const params = new URLSearchParams();
+  for (const wp of waypoints) {
+    params.append('waypoints', `${wp.lat},${wp.lng}`);
+  }
 
   const response = await fetch(`/api/routes?${params.toString()}`);
   if (!response.ok) {

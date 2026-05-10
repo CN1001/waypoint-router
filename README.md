@@ -84,6 +84,7 @@ This baseline uses the free OSRM public demo server. It is good for prototypes a
 
 ## Roadmap
 
+- ~~Add multi-stop waypoint routing (A → B → C → ...).~~ ✓ Done in v0.2.0
 - Add route scenario modes such as driving, walking, cycling, and avoid options.
 - Add typed route history and saved locations.
 - Add provider configuration for OSRM, GraphHopper, or self-hosted routing.

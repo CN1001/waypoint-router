@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.models import RoutesResponse
 from app.routing import RoutingProviderError, fetch_route_alternatives, parse_coordinate_pair
 
-app = FastAPI(title="Map Routing API", version="0.1.0")
+app = FastAPI(title="Map Routing API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,16 +22,19 @@ def health() -> dict[str, str]:
 
 @app.get("/api/routes", response_model=RoutesResponse)
 async def routes(
-    start: str = Query(..., description="Start coordinate as lat,lng"),
-    end: str = Query(..., description="Target coordinate as lat,lng"),
+    waypoints: list[str] = Query(..., description="Ordered waypoints as lat,lng strings, minimum 2"),
 ) -> dict[str, object]:
-    try:
-        start_point = parse_coordinate_pair(start)
-        end_point = parse_coordinate_pair(end)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if len(waypoints) < 2:
+        raise HTTPException(status_code=422, detail="At least 2 waypoints are required")
+
+    parsed = []
+    for entry in waypoints:
+        try:
+            parsed.append(parse_coordinate_pair(entry))
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     try:
-        return await fetch_route_alternatives(start_point, end_point)
+        return await fetch_route_alternatives(parsed)
     except RoutingProviderError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
