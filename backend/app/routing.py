@@ -31,17 +31,17 @@ def parse_coordinate_pair(value: str) -> Coordinate:
     return Coordinate(lat=lat, lng=lng)
 
 
-def build_osrm_url(start: Coordinate, end: Coordinate) -> str:
-    coordinates = f"{start.lng},{start.lat};{end.lng},{end.lat}"
-    query = urlencode(
-        {
-            "overview": "full",
-            "geometries": "geojson",
-            "alternatives": "true",
-            "steps": "false",
-        }
-    )
-    return f"{OSRM_BASE_URL}/{coordinates}?{query}"
+def build_osrm_url(waypoints: list[Coordinate]) -> str:
+    coordinate_string = ";".join(f"{wp.lng},{wp.lat}" for wp in waypoints)
+    params: dict[str, str] = {
+        "overview": "full",
+        "geometries": "geojson",
+        "steps": "false",
+    }
+    if len(waypoints) == 2:
+        params["alternatives"] = "true"
+    query = urlencode(params)
+    return f"{OSRM_BASE_URL}/{coordinate_string}?{query}"
 
 
 def normalize_osrm_routes(payload: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
@@ -60,8 +60,8 @@ def normalize_osrm_routes(payload: dict[str, Any]) -> dict[str, list[dict[str, A
     return {"routes": routes}
 
 
-async def fetch_route_alternatives(start: Coordinate, end: Coordinate) -> dict[str, list[dict[str, Any]]]:
-    url = build_osrm_url(start, end)
+async def fetch_route_alternatives(waypoints: list[Coordinate]) -> dict[str, list[dict[str, Any]]]:
+    url = build_osrm_url(waypoints)
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(url)
